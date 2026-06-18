@@ -54,33 +54,7 @@ This project simulates the core functionality of a real industrial robot teach p
 
 ## System Architecture
 
-+----------------------+ 
-|     PyQt6 GUI        |
-|    (Teach Pendant)   |
-+----------------------+
-          | 
-          v 
-+----------------------+
-|     ROS2 Topics      |
-| Command Interface    | 
-+----------------------+ 
-          |
-          v
-+----------------------+
-|     Joint State      |
-|   Controller Node    |
-+----------------------+ 
-          |
-          v 
-+----------------------+ 
-| JointState Publisher |
-+----------------------+ 
-          |
-          v
-+----------------------+ 
-|       RViz2         |
-| Robot Visualization |
-+----------------------+
+<img width="194" height="553" alt="image" src="https://github.com/user-attachments/assets/2ef89cd0-575d-4d77-89de-ebcfbf494d71" />
 
 
 ### ROS Topics
