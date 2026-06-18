@@ -165,6 +165,8 @@ This project demonstrates:
 
 ## Commands to use:
 
+FOR UBUNTU TERMINAL
+
 For Configuring the Build:
 * cd ~/ros2_ws
   colcon build
