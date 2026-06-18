@@ -1,4 +1,5 @@
-<img width="799" height="953" alt="image" src="https://github.com/user-attachments/assets/e34e1cd1-8741-4021-a556-e744f187b670" /># ROS2 Industrial Teach Pendant
+<img width="799" height="953" alt="image" src="https://github.com/user-attachments/assets/e34e1cd1-8741-4021-a556-e744f187b670" />
+# ROS2 Industrial Teach Pendant
 
 A ROS2-based industrial robot teach pendant developed using Python, PyQt6, and RViz.
 
