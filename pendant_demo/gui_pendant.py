@@ -232,11 +232,13 @@ class PendantROS(Node):
             
     def save_program(self):
 
-        data = {}
+        data = {
 
-        for key, value in self.saved_points.items():
+            "saved_points": self.saved_points,
 
-            data[key] = value
+            "program": self.program
+
+        }
 
         with open(
             "program.json",
@@ -263,19 +265,30 @@ class PendantROS(Node):
                 "r"
             ) as file:
 
-                self.saved_points = json.load(
+                data = json.load(
                     file
                 )
 
-                for key, value in self.saved_points.items():
+            loaded_points = data.get(
+                "saved_points",
+                {}
+            )
 
-                    if value is not None:
+            for i in range(1, 11):
 
-                        self.saved_points[key] = [
-                            float(value[0]),
-                            float(value[1]),
-                            float(value[2])
-                        ]
+                point_name = f"P{i}"
+
+                self.saved_points[point_name] = (
+                    loaded_points.get(
+                        point_name,
+                        None
+                    )
+                )
+
+            self.program = data.get(
+                "program",
+                []
+            )
 
             print(
                 "Program Loaded"
@@ -283,6 +296,10 @@ class PendantROS(Node):
 
             print(
                 self.saved_points
+            )
+
+            print(
+                self.program
             )
 
         except FileNotFoundError:
@@ -360,13 +377,23 @@ class PendantWindow(QWidget):
 
         self.ros_node = ros_node
 
+        self.program_running = False
+        self.program_index = 0
+        self.program_paused = False
+        self.paused_point = None
+
         self.setWindowTitle(
             "STM32 Teach Pendant"
         )
 
-        self.resize(800,480)
+        self.setFixedSize(800,480)
 
-        layout = QVBoxLayout()
+        main_layout = QVBoxLayout()
+
+        top_layout = QHBoxLayout()
+
+        left_panel = QVBoxLayout()
+        right_panel = QVBoxLayout()
         
         status_group = QGroupBox(
             "STATUS"
@@ -388,18 +415,10 @@ class PendantWindow(QWidget):
             "Status: UNKNOWN"
         )
         
-        self.j1_label = QLabel(
-            "J1: 0.00"
-        )
+        self.j1_label = QLabel("J1: 0.00")
+        self.j2_label = QLabel("J2: 0.00")
+        self.j3_label = QLabel("J3: 0.00")
 
-        self.j2_label = QLabel(
-            "J2: 0.00"
-        )
-
-        self.j3_label = QLabel(
-            "J3: 0.00"
-        )
-        
         self.status_label.setStyleSheet(
             "font-size: 22px; font-weight: bold;"
         )
@@ -447,6 +466,12 @@ class PendantWindow(QWidget):
         self.stop_button = QPushButton(
             "STOP"
         )
+
+        self.continue_button = QPushButton(
+            "CONTINUE"
+        )
+
+        self.continue_button.hide()
         
         self.run_program_button = QPushButton(
             "RUN PROGRAM"
@@ -473,6 +498,27 @@ class PendantWindow(QWidget):
         )
 
         self.program_list = QListWidget()
+
+        self.program_box = QGroupBox("PROGRAM")
+
+        self.program_box.setStyleSheet(
+            """
+            QGroupBox {
+                font-size: 16px;
+                font-weight: bold;
+            }
+            """
+        )
+
+        program_box_layout = QVBoxLayout()
+
+        program_box_layout.addWidget(
+            self.program_list
+        )
+
+        self.program_box.setLayout(
+            program_box_layout
+        )
 
         self.add_point_button = QPushButton(
             "ADD TO PROGRAM"
@@ -510,133 +556,148 @@ class PendantWindow(QWidget):
 
             button.setMinimumHeight(50)
 
-        layout.addWidget(
-            self.status_label
+        status_title = QLabel("STATUS")
+
+        status_title.setStyleSheet(
+            "font-size: 18px; font-weight: bold;"
         )
         
-        layout.addWidget(
-            self.j1_label
-        )
+        left_panel.addWidget(status_title)
+        left_panel.addWidget(self.status_label)
+        left_panel.addWidget(self.j1_label)
+        left_panel.addWidget(self.j2_label)
+        left_panel.addWidget(self.j3_label)
 
-        layout.addWidget(
-            self.j2_label
+        teach_points_title = QLabel(
+            "TEACH POINTS"
         )
-
-        layout.addWidget(
-            self.j3_label
-        )
-
-        layout.addWidget(
-            self.home_button
-        )
+        right_panel.addWidget(teach_points_title)
+        right_panel.addWidget(self.point_selector)
+        right_panel.addWidget(self.save_point_button)
+        right_panel.addWidget(self.goto_point_button)
         
-        layout.addWidget(
-            self.point_selector
-        )
+        top_layout.addLayout(left_panel)
+        top_layout.addLayout(right_panel)
 
-        layout.addWidget(
-            self.save_point_button
-        )
+        main_layout.addLayout(top_layout)
 
-        layout.addWidget(
-            self.goto_point_button
-        )
+        program_controls = QHBoxLayout()
 
-        layout.addWidget(
-            self.program_list
-        )
+        program_layout = QHBoxLayout()
 
-        layout.addWidget(
+        program_buttons = QVBoxLayout()
+
+        program_buttons.addWidget(
             self.add_point_button
         )
 
-        layout.addWidget(
-            self.clear_program_button
-        )
-
-        layout.addWidget(
+        program_buttons.addWidget(
             self.delete_step_button
         )
 
-        layout.addWidget(
+        program_buttons.addWidget(
             self.move_up_button
         )
 
-        layout.addWidget(
+        program_buttons.addWidget(
             self.move_down_button
         )
 
-        # J1 Row
+        program_buttons.addWidget(
+            self.clear_program_button
+        )
 
-        j1_layout = QHBoxLayout()
+        program_layout.addWidget(
+            self.program_box,
+            4
+        )
 
-        j1_layout.addWidget(
+        program_layout.addLayout(
+            program_buttons,
+            1
+        )
+
+        main_layout.addLayout(
+            program_layout
+        )
+
+        jog_bar = QHBoxLayout()
+
+        jog_bar.addWidget(
             self.j1_plus_button
         )
 
-        j1_layout.addWidget(
+        jog_bar.addWidget(
             self.j1_minus_button
         )
 
-        layout.addLayout(
-            j1_layout
-        )
-
-        # J2 Row
-
-        j2_layout = QHBoxLayout()
-
-        j2_layout.addWidget(
+        jog_bar.addWidget(
             self.j2_plus_button
         )
 
-        j2_layout.addWidget(
+        jog_bar.addWidget(
             self.j2_minus_button
         )
 
-        layout.addLayout(
-            j2_layout
-        )
-
-        # J3 Row
-
-        j3_layout = QHBoxLayout()
-
-        j3_layout.addWidget(
+        jog_bar.addWidget(
             self.j3_plus_button
         )
 
-        j3_layout.addWidget(
+        jog_bar.addWidget(
             self.j3_minus_button
         )
 
-        layout.addLayout(
-            j3_layout
+        self.jog_title = QLabel("JOG CONTROLS")
+
+        self.jog_title.setStyleSheet(
+            "font-size: 18px; font-weight: bold;"
         )
 
-        layout.addWidget(
+        main_layout.addWidget(
+            self.jog_title
+        )
+
+        main_layout.addLayout(
+            jog_bar
+        )
+
+        action_bar = QHBoxLayout()
+
+        action_bar.addWidget(
+            self.home_button
+        )
+
+        action_bar.addWidget(
             self.stop_button
         )
-        
-        layout.addWidget(
+
+        action_bar.addWidget(
+            self.continue_button
+        )
+
+        action_bar.addWidget(
             self.run_program_button
         )
-        layout.addWidget(
+
+        action_bar.addWidget(
             self.save_program_button
         )
-        layout.addWidget(
+
+        action_bar.addWidget(
             self.load_program_button
         )
-        self.save_program_button.clicked.connect(
-            self.save_program_pressed
+
+        main_layout.addLayout(
+            action_bar
         )
 
-        self.load_program_button.clicked.connect(
-            self.load_program_pressed
-        )
+        main_layout.setStretch(0, 1)   # top area
+        main_layout.setStretch(1, 4)   # program area
+        main_layout.setStretch(2, 1)   # jog area
+        main_layout.setStretch(3, 1)   # action area
 
-        self.setLayout(layout)
-
+        self.setLayout(main_layout)
+        
         self.home_button.clicked.connect(
             self.home_pressed
         )
@@ -666,7 +727,7 @@ class PendantWindow(QWidget):
         )
 
         self.stop_button.clicked.connect(
-            lambda: self.ros_node.send_jog("stop")
+            self.stop_pressed
         )
         
         self.run_program_button.clicked.connect(
@@ -675,6 +736,14 @@ class PendantWindow(QWidget):
         
         self.save_point_button.clicked.connect(
             self.save_selected_point
+        )
+
+        self.save_program_button.clicked.connect(
+            self.save_program_pressed
+        )
+
+        self.load_program_button.clicked.connect(
+            self.load_program_pressed
         )
 
         self.goto_point_button.clicked.connect(
@@ -701,7 +770,13 @@ class PendantWindow(QWidget):
             self.move_step_down
         )
 
+        self.continue_button.clicked.connect(
+            self.continue_pressed
+        )
+
     def home_pressed(self):
+
+        self.cancel_current_operation()
 
         self.ros_node.send_jog("home")
 
@@ -725,40 +800,89 @@ class PendantWindow(QWidget):
 
     def goto_selected_point(self):
 
+        self.cancel_current_operation()
+
         point = (
             self.point_selector.currentText()
             .split()[0]
         )
 
-        self.ros_node.goto_point(
-            point
-        )
+        self.ros_node.goto_point(point)
 
     def run_program_pressed(self):
 
-        self.ros_node.execute_program()
-    # def update_status(self):
+        self.cancel_current_operation()
 
-    #     print(
-    #         self.ros_node.motion_status,
-    #         self.ros_node.joint_positions
-    #     )
+        if len(self.ros_node.program) == 0:
 
-    #     self.status_label.setText(
-    #         f"Status: {self.ros_node.motion_status}"
-    #     )
+            print("Program Empty")
+            return
 
-    #     self.j1_label.setText(
-    #         f"J1: {self.ros_node.joint_positions[0]:.2f}"
-    #     )
+        self.program_running = True
 
-    #     self.j2_label.setText(
-    #         f"J2: {self.ros_node.joint_positions[1]:.2f}"
-    #     )
+        self.program_index = 0
 
-    #     self.j3_label.setText(
-    #         f"J3: {self.ros_node.joint_positions[2]:.2f}"
-    #     )
+        self.execute_next_step()
+
+    def execute_next_step(self):
+
+        if not self.program_running:
+
+            return
+
+        if self.program_index >= len(
+            self.ros_node.program
+        ):
+
+            print("Program Complete")
+
+            self.program_running = False
+
+            return
+
+        point_name = self.ros_node.program[
+            self.program_index
+        ]
+
+        print(
+            f"Moving to {point_name}"
+        )
+
+        self.ros_node.target_reached = False
+
+        self.ros_node.goto_point(
+            point_name
+        )
+
+        self.wait_for_target()
+
+    def wait_for_target(self):
+
+        if self.program_paused:
+
+            QTimer.singleShot(
+                100,
+                self.wait_for_target
+            )
+
+            return
+
+        if not self.program_running:
+
+            return
+
+        if self.ros_node.target_reached:
+
+            self.program_index += 1
+
+            self.execute_next_step()
+
+            return
+
+        QTimer.singleShot(
+            100,
+            self.wait_for_target
+        )
     
     def update_status(self):
 
@@ -767,15 +891,15 @@ class PendantWindow(QWidget):
         )
 
         self.j1_label.setText(
-            str(self.ros_node.joint_positions[0])
+            f"J1: {self.ros_node.joint_positions[0]:.2f}"
         )
 
         self.j2_label.setText(
-            str(self.ros_node.joint_positions[1])
+            f"J2: {self.ros_node.joint_positions[1]:.2f}"
         )
 
         self.j3_label.setText(
-            str(self.ros_node.joint_positions[2])
+            f"J3: {self.ros_node.joint_positions[2]:.2f}"
         )
 
     def save_program_pressed(self):
@@ -787,6 +911,8 @@ class PendantWindow(QWidget):
         self.ros_node.load_program()
 
         self.refresh_point_selector()
+
+        self.refresh_program_list()
 
     def add_point_to_program(self):
 
@@ -906,6 +1032,71 @@ class PendantWindow(QWidget):
             self.point_selector.addItem(
                 text
             )
+
+    def stop_pressed(self):
+
+        if self.program_running:
+
+            self.paused_point = (
+                self.ros_node.program[
+                    self.program_index
+                ]
+            )
+
+        self.program_paused = True
+
+        self.ros_node.send_jog("stop")
+
+        self.stop_button.hide()
+
+        self.continue_button.show()
+
+        print("Program Paused")
+
+    def continue_pressed(self):
+
+        if not self.program_paused:
+            return
+
+        self.program_paused = False
+
+        self.stop_button.show()
+
+        self.continue_button.hide()
+
+        if self.paused_point is not None:
+
+            self.ros_node.target_reached = False
+
+            self.ros_node.goto_point(
+                self.paused_point
+            )
+
+            self.wait_for_target()
+
+        print("Program Continued")
+
+    def show_stop_button(self):
+
+        self.continue_button.hide()
+
+        self.stop_button.show()
+
+        self.program_paused = False
+
+    def cancel_current_operation(self):
+
+        self.program_running = False
+
+        self.program_paused = False
+
+        self.program_index = 0
+
+        self.paused_point = None
+
+        self.stop_button.show()
+
+        self.continue_button.hide()
         
 def main():
 
