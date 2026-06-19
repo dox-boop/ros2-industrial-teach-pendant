@@ -98,8 +98,7 @@ The robot controller:
 
 ### Teach Pendant GUI
 
-<img width="799" height="953" alt="image" src="https://github.com/user-attachments/assets/d807f8fb-6e97-4fb5-af81-129a32c0f88b" />
-
+<img width="845" height="587" alt="image" src="https://github.com/user-attachments/assets/dd17b6b8-b6bb-4644-8619-a3db886f84de" />
 
 ### RViz Robot Simulation
 
@@ -129,8 +128,6 @@ The robot controller:
 
 ### Short Term
 
-* Pause Program
-* Resume Program
 * Program Pointer Highlighting
 * Speed Override Control
 * Better Motion Status Display
