@@ -175,11 +175,9 @@ For Opening GUI:
 * ros2 run pendant_demo gui_pendant
 
 For Opening Robot State Publisher:
-* source /opt/ros/jazzy/setup.bash
-  source ~/ros2_ws/install/setup.bash
-
-  ros2 run robot_state_publisher robot_state_publisher \
-  ~/ros2_ws/src/robot_description/urdf/simple_robot.urdf
+* ros2 run robot_state_publisher robot_state_publisher \
+--ros-args \
+-p robot_description:="$(cat ~/ros2_ws/src/robot_description/urdf/simple_robot.urdf)"
 
 For Joint-State controller
 * ros2 run pendant_demo joint_state_controller
