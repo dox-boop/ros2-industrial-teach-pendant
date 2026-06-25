@@ -189,6 +189,10 @@ For Joint-State controller
 
 For opening RViz
 * rviz2
+
+
+## TO RUN ALL OF THEM AT THE SAME TIME: 
+~/ros2_ws/scripts/start_pendant.sh
   
 ---
 
